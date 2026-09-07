@@ -90,6 +90,37 @@ they add no policy surface beyond the existing sandbox.
 Rust hosts mirror `VisualLayoutSpec` as a small serde struct for request
 validation — no prompt logic ever needs to leave this package.
 
+## Mockups
+
+See [`docs/mockups/dextop-visual-layout-mockup.html`](docs/mockups/dextop-visual-layout-mockup.html) —
+a single, fully self-contained HTML file that demonstrates **all eight** doc
+types the SDK can produce, switched live with a top tab bar. Every layout is
+the same `html` preset (plus the `markdown` preset for Document); only the
+paragraph bank injected into the system prompt differs.
+
+| Doc | Variant / preset | Demonstrates |
+|---|---|---|
+| **Magazine** | `html · magazine` | Full-bleed hero, kicker, pull quote, two-column body, inline-SVG bar chart, click-to-load video cover |
+| **Portfolio** | `html · portfolio` | Brand-tint header, 4-up stat row, mixed-aspect image grid, skill chips, testimonial card |
+| **Interactive** | `html · interactive` | Pill tab bar, numbered steps, `<details>` accordions, hover-zoom image gallery |
+| **Research** | `html · research` | Confidence badges, finding cards, hover-tooltip citations, evidence matrix, collapsed methodology, numbered refs |
+| **Workbook** | `html · workbook` | TL;DR cards, three callout flavors, dotted-underline term tooltips, highlighted comparison table, click-to-check list, sources strip |
+| **Feed** | `html · feed` | Click-to-load YouTube/Vimeo covers, working image carousel, social cards (X / TikTok / Instagram / Threads / Reddit / HN), animated verification workflow, source ledger |
+| **Guide** | `html · guide` | Animated SVG loop diagram, tracked steps + progress meter, knowledge-check quizzes, **locked completion certificate** that unlocks when all steps are done, and `data-action-targets` routing to Tasks / Calendar / Notes |
+| **Document** | `markdown` preset | Restrained typographic prose with h2 sections, table, blockquote, inline code, fenced code block |
+
+The mockup uses the **real DexLab token values** from
+`frontend/src/styles/tokens.css`, so the visual reads as production chrome. In
+the actual host each generated document sits in a sandboxed iframe whose CSP
+is derived from the same `outputPolicy` the prompt was built from — the mockup
+omits the iframe boundary so all eight stay on one page.
+
+Process and system diagrams (the Guide loop and the Feed verification
+workflow) are **animated inline SVG** drawn by the model: marching dashes
+(`stroke-dasharray` + `stroke-dashoffset` keyframes), a traveling dot
+(SMIL `animateMotion`), and pulsing nodes (`opacity` keyframes). No JS, no
+chart library, zero policy surface beyond the existing sandbox.
+
 ## Design rationale
 
 See the originating plan in the Dextop repo:
