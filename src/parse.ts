@@ -15,9 +15,46 @@ const stripTags = (html: string): string =>
     .trim();
 
 /**
- * Validate and normalize a generated layout document for the host's previewer:
- * size cap, image/embed inventory (the host builds its sandbox CSP from the
- * embed list), and guide-variant action items (data-action-targets contract).
+ * Validate and normalize a generated layout document for the host's previewer.
+ *
+ * Performs three checks:
+ * 1. **Size validation**: rejects documents exceeding `policy.maxDocumentBytes`
+ * 2. **Resource inventory**: counts `<img>` elements and extracts all `<iframe src>` URLs
+ * 3. **Action item extraction**: finds elements with `data-action-targets` (guide variant contract)
+ *
+ * The embed inventory is the key output — host applications use it to build
+ * the iframe's `frame-src` CSP directive. Never trust the model to declare its
+ * own frame policies; always derive the CSP from `doc.embeds`.
+ *
+ * @param html - The raw HTML document body (from `DetectedLayout.document`)
+ * @param policy - Output policy for size validation; defaults to `DEFAULT_OUTPUT_POLICY`
+ * @returns A `ParsedLayoutDocument` with validation results and resource inventory
+ *
+ * @example
+ * // Basic usage
+ * const doc = parseLayoutDocument(hit.document, spec.outputPolicy);
+ * if (!doc.ok) {
+ *   console.error(`Invalid layout: ${doc.reason}`);
+ *   return;
+ * }
+ *
+ * @example
+ * // Build CSP from embed inventory
+ * const origins = [...new Set(doc.embeds.map(e => new URL(e.src).origin))];
+ * const csp = `frame-src 'self' ${origins.join(' ')}`;
+ *
+ * @example
+ * // Extract action items (guide variant)
+ * for (const item of doc.actionItems) {
+ *   console.log(`${item.text} → ${item.targets.join(', ')}`);
+ * }
+ *
+ * @example
+ * // Handle size rejection gracefully
+ * if (doc.reason === 'too-large') {
+ *   showWarning(`Document exceeded ${spec.outputPolicy.maxDocumentBytes} byte limit`);
+ *   renderFallback(doc.html.slice(0, 2000) + '... [truncated]');
+ * }
  */
 export function parseLayoutDocument(
   html: string,

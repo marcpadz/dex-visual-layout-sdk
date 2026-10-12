@@ -1,9 +1,21 @@
 import type { HtmlLayoutVariant, VisualLayoutSpec } from './types.js';
 import { LAYOUT_FENCE_MARKER } from './types.js';
 
-/** Variant paragraph banks. Adding a style = adding a bank here; nothing else
- *  in the SDK or any host changes. */
-
+/**
+ * Variant paragraph banks.
+ *
+ * Adding a new style = adding a new entry here; nothing else in the SDK or any
+ * host needs to change. The paragraph bank is interpolated into the system
+ * prompt by `buildSystemPromptFragment`, so each variant is just a different
+ * set of style instructions for the model.
+ *
+ * Each bank describes:
+ * - The layout structure (header, body, footer sections)
+ * - Interactive elements the model may use (tabs, accordions, checklists, etc.)
+ * - Any host-consumable attributes (e.g., `data-action-targets` for guide)
+ *
+ * @private
+ */
 const VARIANT_BANKS: Record<HtmlLayoutVariant, string> = {
   magazine: `### Layout style: magazine — editorial feature piece
 - Full-bleed hero image with a dark gradient shade, kicker (small caps, brand color), display headline (tight letter-spacing), standfirst, and a byline/meta strip.
@@ -55,9 +67,19 @@ const MARKDOWN_BANK = `### Layout style: document — clean typographic prose
 - A markdown document (no HTML fence wrapper needed beyond the contract): title, byline, h2 sections, tables, blockquotes, and fenced code blocks.
 - Restrained styling only: this preset is for prose that reads well in the document editor.`;
 
-/** System-prompt instructions for what the generated document may load. The
- *  host derives its sandbox CSP from the same spec, so the model is never
- *  promised something the preview forbids. */
+/**
+ * Build the system-prompt instructions for what the generated document may load.
+ *
+ * The returned lines are interpolated into the prompt fragment by
+ * `buildSystemPromptFragment`. This function is the heart of the "drift guard":
+ * the SAME policy that controls the prompt also controls what the host's iframe
+ * CSP allows. If you ever diverge these two, the model may promise something
+ * the sandbox forbids — which breaks the security contract.
+ *
+ * @param spec - The visual layout spec whose policy to encode
+ * @returns An array of bullet-point strings describing image/embed rules
+ * @private
+ */
 function policyText(spec: VisualLayoutSpec): string[] {
   const lines: string[] = [];
   if (spec.outputPolicy.allowRemoteImages) {
@@ -82,10 +104,55 @@ function policyText(spec: VisualLayoutSpec): string[] {
 }
 
 /**
- * Build the system-prompt fragment for the given spec. This is the single
- * source of truth for what the model is told; hosts inject the returned
- * string into their system prompt / system context block.
- * Returns '' when the capability is disabled.
+ * Build the system-prompt fragment for the given spec.
+ *
+ * This is the **single source of truth** for what the model is told about the
+ * visual layout capability. Hosts inject the returned string into their system
+ * prompt or system context block before each turn.
+ *
+ * When `spec.enabled` is `false`, returns an empty string — safe to always
+ * append without conditional logic:
+ *
+ * ```ts
+ * systemPrompt += '\n\n' + buildSystemPromptFragment(spec);
+ * ```
+ *
+ * The fragment contains:
+ * 1. A header declaring the active preset and variant (or "document" for markdown)
+ * 2. A paragraph bank describing the layout style (one of 7 HTML variants, or the markdown style)
+ * 3. The output contract: exactly one fenced code block with the correct info string
+ * 4. Resource policy rules derived from `spec.outputPolicy` (the drift guard)
+ *
+ * @param spec - The complete visual layout spec controlling style and policy
+ * @returns A non-empty string describing the layout style and output contract,
+ *          or `''` when the capability is disabled
+ *
+ * @example
+ * // Enable the workbook variant
+ * const spec: VisualLayoutSpec = {
+ *   enabled: true,
+ *   preset: 'html',
+ *   variant: 'workbook',
+ *   outputPolicy: { allowRemoteImages: true, allowEmbeds: false },
+ * };
+ * const fragment = buildSystemPromptFragment(spec);
+ * // → '## Visual Layout active — preset: html · style: workbook\n\n...'
+ *
+ * @example
+ * // Markdown preset — no variant needed
+ * const spec: VisualLayoutSpec = {
+ *   enabled: true,
+ *   preset: 'markdown',
+ *   outputPolicy: { allowRemoteImages: false, allowEmbeds: false },
+ * };
+ * const fragment = buildSystemPromptFragment(spec);
+ * // → '## Visual Layout active — preset: markdown\n\n...'
+ *
+ * @example
+ * // Disabled — returns empty string
+ * const spec: VisualLayoutSpec = { ...DEFAULT_SPEC, enabled: false };
+ * const fragment = buildSystemPromptFragment(spec);
+ * // → ''
  */
 export function buildSystemPromptFragment(spec: VisualLayoutSpec): string {
   if (!spec.enabled) return '';

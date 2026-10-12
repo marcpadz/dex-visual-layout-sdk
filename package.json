@@ -1,6 +1,6 @@
 {
   "name": "dex-visual-layout-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Harness-agnostic agent capability SDK: turn a VisualLayoutSpec into model prompt instructions, detect/parse the generated layout document, and derive the preview security policy from the same spec.",
   "type": "module",
   "main": "./dist/index.js",
