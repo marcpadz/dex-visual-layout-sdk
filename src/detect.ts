@@ -127,7 +127,7 @@ export function describeLayoutStream(text: string): LayoutStreamInfo {
   if (!kindMatch) return { started: true, preset: null };
   const preset = kindMatch[1] as "html" | "markdown";
   const variantMatch = infoLine.match(/\bvariant=([\w-]+)/);
-  const heightMatch = infoLine.match(/\bheight=(\d+)\b/);
+  const heightMatch = infoLine.match(/\bheight=["\']?(\d+)(?:px)?["\']?(?!\w)/i);
   const variant = variantMatch?.[1];
   const initialHeight = heightMatch ? Math.max(120, Math.min(2000, Number(heightMatch[1]))) : DEFAULT_HEIGHTS[preset];
   return { started: true, preset, variant, initialHeight };

@@ -24,3 +24,14 @@ describe("describeLayoutStream", () => {
     expect(describeLayoutStream("<!DOCTYPE html><html>")).toEqual({ started: true, preset: "html", initialHeight: 420 });
   });
 });
+describe("describeLayoutStream — quoted/px height tokens (agy review)", () => {
+  it('accepts height="520"', () => {
+    expect(describeLayoutStream('```layout:html height="520"\n').initialHeight).toBe(520);
+  });
+  it("accepts height=520px", () => {
+    expect(describeLayoutStream("```layout:html height=520px\n").initialHeight).toBe(520);
+  });
+  it("rejects height=99999px via clamp", () => {
+    expect(describeLayoutStream("```layout:html height=99999px\n").initialHeight).toBe(2000);
+  });
+});
