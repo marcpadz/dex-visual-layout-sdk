@@ -134,3 +134,30 @@ npm test        # vitest
 npm run lint    # tsc --noEmit
 npm run build   # tsc → dist/
 ```
+
+---
+
+## Bring dex-visual-layout-sdk to your app
+
+1. **Spec state.** Persist a `VisualLayoutSpec` per session/conversation
+   (`DEFAULT_SPEC` is a sane starting point: disabled, `workbook` variant).
+   The spec is the only state — everything else derives from it.
+2. **Prompt.** Call `buildSystemPromptFragment(spec)` and append the returned
+   string to your system prompt for the turn (empty string when disabled —
+   skip the call entirely if the toggle is off).
+3. **Detect.** On each assistant-text delta/completion, run
+   `detectLayoutOutput(text)`. `kind === "none"` → render normally.
+   `complete === false` → the document is still streaming; use
+   `describeLayoutStream(text)` to render a card shell (chrome + placeholder
+   at `initialHeight`) instead of waiting — the frame materializes during
+   generation and never pops in empty.
+4. **Validate + render.** On `complete`, run
+   `parseLayoutDocument(document, spec.outputPolicy)`. `ok === false`
+   (`too-large` / `empty`) → fall back to a code block. `ok` → render in an
+   iframe with `sandbox="allow-scripts"` (never `allow-same-origin`), a CSP
+   derived from `spec.outputPolicy`, and an expand affordance into your
+   artifact/canvas surface (promote the raw document, not the iframe).
+5. **Trust the contract.** The document is model-authored but the *contract*
+   is enforced by your validator — size caps, `parseLayoutDocument` checks,
+   and the iframe sandbox are the security boundary. Never inject the HTML
+   outside a sandboxed frame.
